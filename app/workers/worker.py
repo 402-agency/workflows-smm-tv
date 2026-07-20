@@ -34,12 +34,24 @@ async def run_pipeline_task(ctx: dict, run_id: int) -> dict:
                         run, "Another pipeline run is already in progress"
                     )
             return {"skipped": True, "run_id": run_id}
-        await execute_run(run_id)
-        return {"ok": True, "run_id": run_id}
+        # execute_run marks the run failed on error; swallow here so ARQ does
+        # not retry (the run row is the source of truth for status).
+        try:
+            await execute_run(run_id)
+            return {"ok": True, "run_id": run_id}
+        except Exception as exc:  # noqa: BLE001
+            log.warning("pipeline_task_error", run_id=run_id, error=str(exc))
+            return {"ok": False, "run_id": run_id, "error": str(exc)}
 
 
 async def regenerate_ai_task(ctx: dict, run_id: int) -> dict:
-    return await regenerate_run_ai(run_id)
+    try:
+        return await regenerate_run_ai(run_id)
+    except Exception as exc:  # noqa: BLE001
+        get_logger("worker").warning(
+            "regenerate_task_error", run_id=run_id, error=str(exc)
+        )
+        return {"ok": False, "run_id": run_id, "error": str(exc)}
 
 
 async def on_startup(ctx: dict) -> None:
