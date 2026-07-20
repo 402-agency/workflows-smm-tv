@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% import "_partials.html" as ui %}
+{% block title %}Dashboard · Trend Analyzer{% endblock %}
+
+{% block content %}
+  <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-semibold">
+        {% if searching %}Search results{% else %}Trending now{% endif %}
+      </h1>
+      {% if run and not searching %}
+        <p class="text-sm text-slate-500">
+          Ranked from run #{{ run.id }} · {{ run.finished_at.strftime('%Y-%m-%d %H:%M') if run.finished_at else '' }} UTC
+        </p>
+      {% elif not run %}
+        <p class="text-sm text-slate-500">No completed run yet — start one to populate trends.</p>
+      {% endif %}
+    </div>
+    {% if script %}
+      <a href="/script/{{ script.id }}" class="btn-secondary">📝 View generated script</a>
+    {% endif %}
+  </div>
+
+  <form method="get" action="/" class="card mb-6 flex flex-wrap items-end gap-3 p-4">
+    <div class="flex-1 min-w-[180px]">
+      <label class="block text-xs font-medium text-slate-500">Search</label>
+      <input name="q" value="{{ filters.q }}" placeholder="title…"
+             class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-500">Type</label>
+      <select name="type" class="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm">
+        <option value="" {{ 'selected' if not filters.type }}>All</option>
+        <option value="movie" {{ 'selected' if filters.type == 'movie' }}>Movie</option>
+        <option value="tv" {{ 'selected' if filters.type == 'tv' }}>TV</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-500">Genre</label>
+      <input name="genre" value="{{ filters.genre }}" placeholder="e.g. Drama"
+             class="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm" />
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-500">Sort</label>
+      <select name="order_by" class="mt-1 rounded-md border border-slate-300 px-3 py-2 text-sm">
+        <option value="popularity" {{ 'selected' if filters.order_by == 'popularity' }}>Popularity</option>
+        <option value="title" {{ 'selected' if filters.order_by == 'title' }}>Title</option>
+        <option value="created" {{ 'selected' if filters.order_by == 'created' }}>Newest</option>
+      </select>
+    </div>
+    <button type="submit" class="btn-primary">Filter</button>
+    {% if searching %}<a href="/" class="btn-secondary">Clear</a>{% endif %}
+  </form>
+
+  {% if not items %}
+    <div class="card p-8 text-center text-slate-500">Nothing to show yet.</div>
+  {% else %}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {% for item in items %}
+        {% set t = item.title %}
+        <a href="/title/{{ t.id }}" class="card flex gap-3 overflow-hidden p-3 transition hover:shadow-md">
+          {% if t.poster_url %}
+            <img src="{{ t.poster_url }}" alt="" class="h-32 w-20 flex-none rounded object-cover" loading="lazy" />
+          {% else %}
+            <div class="flex h-32 w-20 flex-none items-center justify-center rounded bg-slate-100 text-2xl">🎞️</div>
+          {% endif %}
+          <div class="flex min-w-0 flex-1 flex-col">
+            <div class="flex items-center gap-2">
+              {% if item.ranking %}<span class="badge bg-brand/10 text-brand-dark">#{{ item.ranking.position }}</span>{% endif %}
+              {{ ui.type_badge(t.type) }}
+            </div>
+            <h3 class="mt-1 truncate font-semibold" title="{{ t.title }}">{{ t.title }}</h3>
+            <p class="text-xs text-slate-500">
+              {{ t.release_date.year if t.release_date else '—' }} ·
+              {{ (t.genres or [])[:2] | join(', ') }}
+            </p>
+            {% if item.ranking %}
+              <p class="mt-1 text-xs text-slate-500">Score <span class="font-semibold text-slate-700">{{ '%.3f' % item.ranking.score }}</span></p>
+            {% endif %}
+            <div class="mt-auto pt-2">{{ ui.sentiment_bar(item.sentiment) }}</div>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}

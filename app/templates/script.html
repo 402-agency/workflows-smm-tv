@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Script · Trend Analyzer{% endblock %}
+
+{% block content %}
+  <a href="/" class="text-sm text-slate-500 hover:text-brand">&larr; Back to dashboard</a>
+
+  <div class="mt-3 mb-4">
+    <h1 class="text-2xl font-semibold">{{ script.video_title or 'Generated script' }}</h1>
+    <p class="text-sm text-slate-500">
+      From run #{{ script.pipeline_run_id }} · {{ script.provider }}/{{ script.model }} ·
+      {{ script.created_at.strftime('%Y-%m-%d %H:%M') if script.created_at else '' }} UTC
+    </p>
+  </div>
+
+  <div class="grid gap-4 md:grid-cols-3">
+    <div class="card p-5 md:col-span-2">
+      <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Hook</h3>
+      <p class="mt-1 text-lg font-medium">{{ script.hook }}</p>
+
+      <h3 class="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">Narration</h3>
+      <p class="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-700">{{ script.narration }}</p>
+
+      <h3 class="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">Call to action</h3>
+      <p class="mt-1 text-sm text-slate-700">{{ script.cta }}</p>
+    </div>
+
+    <div class="space-y-4">
+      <div class="card p-5">
+        <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Ranked list</h3>
+        <ol class="mt-2 space-y-1 text-sm">
+          {% for item in script.ranked_list %}
+            <li><span class="font-semibold text-brand-dark">#{{ item.position }}</span> {{ item.title }} — <span class="text-slate-600">{{ item.blurb }}</span></li>
+          {% endfor %}
+        </ol>
+      </div>
+      <div class="card p-5">
+        <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">Metadata</h3>
+        <p class="mt-2 text-sm"><span class="font-medium">Thumbnail:</span> {{ script.thumbnail_text }}</p>
+        <p class="mt-1 text-sm"><span class="font-medium">Description:</span> {{ script.description }}</p>
+        <div class="mt-2 flex flex-wrap gap-1">
+          {% for tag in script.hashtags %}<span class="badge bg-brand/10 text-brand-dark">{{ tag }}</span>{% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -1,0 +1,30 @@
+{# Reusable snippets #}
+
+{% macro sentiment_bar(s) %}
+  <div class="flex h-2 w-full overflow-hidden rounded-full bg-slate-100">
+    <div class="bg-emerald-500" style="width: {{ s.positive }}%"></div>
+    <div class="bg-slate-300" style="width: {{ s.neutral }}%"></div>
+    <div class="bg-rose-500" style="width: {{ s.negative }}%"></div>
+  </div>
+  <div class="mt-1 flex justify-between text-[11px] text-slate-500">
+    <span class="text-emerald-600">{{ s.positive }}% pos</span>
+    <span>{{ s.neutral }}% neu</span>
+    <span class="text-rose-600">{{ s.negative }}% neg</span>
+  </div>
+{% endmacro %}
+
+{% macro type_badge(type) %}
+  <span class="badge {{ 'bg-indigo-100 text-indigo-700' if type == 'movie' else 'bg-teal-100 text-teal-700' }}">
+    {{ 'Movie' if type == 'movie' else 'TV' }}
+  </span>
+{% endmacro %}
+
+{% macro status_badge(status) %}
+  {% set colors = {
+    'success': 'bg-emerald-100 text-emerald-700',
+    'running': 'bg-amber-100 text-amber-700',
+    'pending': 'bg-slate-100 text-slate-600',
+    'failed': 'bg-rose-100 text-rose-700'
+  } %}
+  <span class="badge {{ colors.get(status, 'bg-slate-100 text-slate-600') }}">{{ status }}</span>
+{% endmacro %}

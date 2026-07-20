@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% import "_partials.html" as ui %}
+{% block title %}{{ title.title }} · Trend Analyzer{% endblock %}
+
+{% block content %}
+  <a href="/" class="text-sm text-slate-500 hover:text-brand">&larr; Back to dashboard</a>
+
+  <div class="mt-3 flex flex-col gap-5 md:flex-row">
+    {% if title.poster_url %}
+      <img src="{{ title.poster_url }}" alt="" class="h-72 w-48 flex-none self-start rounded-lg object-cover shadow-sm" />
+    {% endif %}
+    <div class="flex-1">
+      <div class="flex items-center gap-2">
+        {{ ui.type_badge(title.type) }}
+        {% if ranking %}<span class="badge bg-brand/10 text-brand-dark">Rank #{{ ranking.position }} · {{ '%.3f' % ranking.score }}</span>{% endif %}
+      </div>
+      <h1 class="mt-2 text-2xl font-semibold">{{ title.title }}</h1>
+      <p class="text-sm text-slate-500">
+        {{ title.release_date.strftime('%Y-%m-%d') if title.release_date else '—' }} ·
+        {{ (title.genres or []) | join(', ') }}
+      </p>
+      {% if title.overview %}<p class="mt-3 text-sm leading-relaxed text-slate-700">{{ title.overview }}</p>{% endif %}
+
+      <div class="mt-4 max-w-md">
+        <h3 class="text-sm font-medium text-slate-600">Audience sentiment ({{ sentiment.total }} items)</h3>
+        <div class="mt-1">{{ ui.sentiment_bar(sentiment) }}</div>
+      </div>
+
+      {% if ratings %}
+        <div class="mt-4 flex flex-wrap gap-2">
+          {% for r in ratings %}
+            <span class="badge bg-slate-100 text-slate-700">
+              {{ r.source }}:
+              {%- if r.critic_score is not none %} {{ r.critic_score }}{% elif r.audience_score is not none %} {{ r.audience_score }}{% elif r.average_rating is not none %} {{ r.average_rating }}{% endif %}
+              {%- if r.review_count %} ({{ r.review_count }}){% endif %}
+            </span>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <form action="/actions/regenerate" method="post" class="mt-4">
+        <input type="hidden" name="run_id" value="{{ ranking.pipeline_run_id if ranking else '' }}" />
+        <button type="submit" class="btn-secondary">↻ Regenerate AI content</button>
+      </form>
+    </div>
+  </div>
+
+  {% if summary %}
+    <div class="card mt-6 p-5">
+      <h2 class="mb-3 text-lg font-semibold">AI analysis</h2>
+      {% if summary.summary %}<p class="text-sm text-slate-700">{{ summary.summary }}</p>{% endif %}
+      <div class="mt-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <h4 class="text-sm font-medium text-emerald-700">Strengths</h4>
+          <ul class="mt-1 list-inside list-disc text-sm text-slate-700">
+            {% for s in summary.strengths %}<li>{{ s }}</li>{% endfor %}
+          </ul>
+        </div>
+        <div>
+          <h4 class="text-sm font-medium text-rose-700">Weaknesses</h4>
+          <ul class="mt-1 list-inside list-disc text-sm text-slate-700">
+            {% for w in summary.weaknesses %}<li>{{ w }}</li>{% endfor %}
+          </ul>
+        </div>
+      </div>
+      {% if summary.audience_reception %}<p class="mt-4 text-sm"><span class="font-medium">Reception:</span> {{ summary.audience_reception }}</p>{% endif %}
+      {% if summary.notable_topics %}
+        <div class="mt-3 flex flex-wrap gap-2">
+          {% for topic in summary.notable_topics %}<span class="badge bg-slate-100 text-slate-600">{{ topic }}</span>{% endfor %}
+        </div>
+      {% endif %}
+      {% if summary.recommendation %}<p class="mt-4 text-sm text-brand-dark"><span class="font-medium">Recommendation:</span> {{ summary.recommendation }}</p>{% endif %}
+    </div>
+  {% else %}
+    <div class="card mt-6 p-5 text-sm text-slate-500">No AI analysis yet for this title.</div>
+  {% endif %}
+
+  <div class="mt-6 grid gap-4 md:grid-cols-2">
+    <div class="card p-5">
+      <h3 class="mb-2 font-semibold">Review excerpts</h3>
+      {% if reviews %}
+        <ul class="space-y-3 text-sm text-slate-700">
+          {% for r in reviews %}<li class="border-l-2 border-slate-200 pl-3">{{ r.content[:280] }}{% if r.content|length > 280 %}…{% endif %}</li>{% endfor %}
+        </ul>
+      {% else %}<p class="text-sm text-slate-400">None collected.</p>{% endif %}
+    </div>
+    <div class="card p-5">
+      <h3 class="mb-2 font-semibold">Social discussion</h3>
+      {% if posts %}
+        <ul class="space-y-3 text-sm text-slate-700">
+          {% for p in posts %}
+            <li class="border-l-2 border-slate-200 pl-3">
+              <span class="badge bg-slate-100 text-slate-500">{{ p.source }}</span>
+              {{ p.content[:220] }}{% if p.content|length > 220 %}…{% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}<p class="text-sm text-slate-400">None collected.</p>{% endif %}
+    </div>
+  </div>
+{% endblock %}
