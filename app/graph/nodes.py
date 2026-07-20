@@ -18,6 +18,7 @@ from app.config import get_settings
 from app.core import redis as redis_helpers
 from app.core.logging import get_logger
 from app.database import session_scope
+from app.graph.context import build_analysis_context, build_script_context
 from app.models.enums import ContentType
 from app.models.pipeline_run import PipelineRun
 from app.models.review import Review
@@ -353,38 +354,6 @@ async def ranking_node(state: dict) -> dict:
 # ---------------------------------------------------------------------------
 # 7. AI analysis
 # ---------------------------------------------------------------------------
-async def _analysis_context(session, title_id: int, dto) -> dict:
-    rating_repo = RatingRepository(session)
-    review_repo = ReviewRepository(session)
-    social_repo = SocialPostRepository(session)
-    sentiment_repo = SentimentRepository(session)
-
-    ratings = await rating_repo.list_for_title(title_id)
-    reviews = await review_repo.list_for_title(title_id, limit=5)
-    posts = await social_repo.list_for_title(title_id, limit=8)
-    agg = await sentiment_repo.aggregate_for_title(title_id)
-    return {
-        "title": dto.title,
-        "type": dto.type,
-        "release_year": dto.year,
-        "genres": dto.genres,
-        "overview": dto.overview,
-        "ratings": [
-            {
-                "source": r.source,
-                "average_rating": r.average_rating,
-                "critic_score": r.critic_score,
-                "audience_score": r.audience_score,
-                "review_count": r.review_count,
-            }
-            for r in ratings
-        ],
-        "sentiment": agg,
-        "sample_reviews": [r.content[:600] for r in reviews],
-        "sample_social": [p.content[:300] for p in posts],
-    }
-
-
 async def ai_analysis_node(state: dict) -> dict:
     run_id = state["run_id"]
     await _stage(run_id, "ai_analysis")
@@ -396,15 +365,13 @@ async def ai_analysis_node(state: dict) -> dict:
 
     ranking = state.get("ranked", [])
     top_ids = [r["title_id"] for r in ranking[: state["top_n"]]]
-    dto_by_id = {e["id"]: e["dto"] for e in state.get("titles", [])}
 
     generated = 0
     for title_id in top_ids:
-        dto = dto_by_id.get(title_id)
-        if dto is None:
-            continue
         async with session_scope() as session:
-            context = await _analysis_context(session, title_id, dto)
+            context = await build_analysis_context(session, title_id)
+        if context is None:
+            continue
         try:
             result = await provider.generate_analysis(context)
         except Exception as exc:  # noqa: BLE001
@@ -442,50 +409,15 @@ async def script_generation_node(state: dict) -> dict:
         return {"script_id": None, "stats": {"script": 0}}
 
     ranking = state.get("ranked", [])[: state["top_n"]]
-    dto_by_id = {e["id"]: e["dto"] for e in state.get("titles", [])}
 
-    titles_ctx = []
     async with session_scope() as session:
-        rating_repo = RatingRepository(session)
-        sentiment_repo = SentimentRepository(session)
-        summary_repo = AISummaryRepository(session)
-        for item in ranking:
-            title_id = item["title_id"]
-            dto = dto_by_id.get(title_id)
-            if dto is None:
-                continue
-            ratings = await rating_repo.list_for_title(title_id)
-            agg = await sentiment_repo.aggregate_for_title(title_id)
-            summary = await summary_repo.latest_for_title(title_id)
-            titles_ctx.append(
-                {
-                    "position": item["position"],
-                    "title": dto.title,
-                    "type": dto.type,
-                    "score": item["score"],
-                    "ratings": [
-                        {"source": r.source, "critic": r.critic_score, "audience": r.audience_score}
-                        for r in ratings
-                    ],
-                    "sentiment_shares": agg["shares"],
-                    "analysis": (
-                        {
-                            "summary": summary.summary,
-                            "strengths": summary.strengths,
-                            "weaknesses": summary.weaknesses,
-                            "recommendation": summary.recommendation,
-                        }
-                        if summary
-                        else None
-                    ),
-                }
-            )
+        script_context = await build_script_context(session, ranking)
 
-    if not titles_ctx:
+    if not script_context["titles"]:
         return {"script_id": None, "stats": {"script": 0}}
 
     try:
-        result = await provider.generate_script({"titles": titles_ctx})
+        result = await provider.generate_script(script_context)
     except Exception as exc:  # noqa: BLE001
         _log.warning("script_generation_failed", run_id=run_id, error=str(exc))
         return {"script_id": None, "stats": {"script": 0}, "errors": [f"script: {exc}"]}
