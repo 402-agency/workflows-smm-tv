@@ -1,0 +1,22 @@
+# Development override: bind-mount the source so containers run the current
+# code without a rebuild, enable uvicorn autoreload, and expose the app port.
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    volumes:
+      - ./:/app
+      - hf-cache:/models
+    ports:
+      - "18000:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/app.Dockerfile
+    volumes:
+      - ./:/app
+      - hf-cache:/models
