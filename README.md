@@ -9,6 +9,8 @@ Everything runs in Docker, exposes a **REST API** and a **server-rendered dashbo
 orchestrated as a modular **LangGraph** pipeline. The pipeline is triggered **manually** (dashboard
 button / API) — there is no scheduler.
 
+📄 **[Architecture case study, workflow diagram & sample output →](https://claude.ai/code/artifact/3f2c8a83-eeec-4b63-901b-c447a68b900e)**
+
 ## Stack
 
 | Concern | Choice |
